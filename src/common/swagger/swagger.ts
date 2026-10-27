@@ -105,7 +105,7 @@ const options = {
               example: '2025-08-04T10:00:00Z',
             },
           },
-          required: ['id', 'name', 'description', 'createdAt', 'updatedAt']
+          required: ['id', 'name', 'description', 'createdAt', 'updatedAt'],
         },
 
         // user req, res 형식

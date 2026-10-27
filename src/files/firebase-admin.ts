@@ -1,29 +1,30 @@
 import admin from 'firebase-admin';
 
-if (!process.env.FIREBASE_CONFIG) {
-  console.error('.env에 FIREBASE_CONFIG 내용 없음');
-  process.exit(1);
-}
+const bucketName = 'gs://codeit-beginner-project.firebasestorage.app';
 
-let serviceAccount;
+const getFirebaseBucket = () => {
+  const firebaseConfig = process.env.FIREBASE_CONFIG;
+  if (!firebaseConfig) {
+    throw new Error('FIREBASE_CONFIG is required to upload files.');
+  }
 
-try {
-  serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
+  const serviceAccount: unknown = JSON.parse(firebaseConfig);
+  if (typeof serviceAccount !== 'object' || serviceAccount === null) {
+    throw new Error('FIREBASE_CONFIG must contain a service-account JSON object.');
+  }
 
-  // 줄바꿈 복원
-  if (typeof serviceAccount.private_key === 'string') {
+  if ('private_key' in serviceAccount && typeof serviceAccount.private_key === 'string') {
     serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
   }
-} catch (error) {
-  console.error('FIREBASE_CONFIG 파싱 실패:', error);
-}
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: 'gs://codeit-beginner-project.firebasestorage.app',
-  });
-}
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: bucketName,
+    });
+  }
 
-const bucket = admin.storage().bucket();
-export default bucket;
+  return admin.storage().bucket();
+};
+
+export default getFirebaseBucket;

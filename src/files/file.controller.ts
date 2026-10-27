@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { statusCode, errorMsg } from '../common/filters/error-handler';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import bucket from './firebase-admin';
+import getFirebaseBucket from './firebase-admin';
 
 export const uploadFiles = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -11,6 +11,8 @@ export const uploadFiles = async (req: Request, res: Response, next: NextFunctio
     if (!files) {
       throw { status: statusCode.badRequest, message: errorMsg.wrongRequestFormat };
     }
+    const bucket = getFirebaseBucket();
+
     const uploadedUrls = await Promise.all(
       files.map(async (file) => {
         const { originalname, buffer, mimetype } = file;
