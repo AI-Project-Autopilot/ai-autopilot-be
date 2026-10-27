@@ -15,11 +15,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: npm
 
       - run: npm ci
       - run: npm run prisma:generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_project_autopilot
       - run: npm run build
 
   deploy:
