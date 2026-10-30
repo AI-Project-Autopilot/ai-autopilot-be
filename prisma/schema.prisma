@@ -155,3 +155,70 @@ model Task_files {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Autopilot identity is independent of legacy Moonshot email/password users.
+model AutopilotUser {
+  id        String               @id @default(cuid())
+  githubId  String               @unique
+  login     String
+  name      String?
+  avatarUrl String
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  sessions  AutopilotSession[]
+  analyses  RepositoryAnalysis[]
+}
+
+model AutopilotSession {
+  tokenHash            String        @id
+  userId               String
+  user                 AutopilotUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  githubTokenEncrypted String
+  expiresAt            DateTime
+  createdAt            DateTime      @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AutopilotOAuthState {
+  stateHash         String   @id
+  browserHash       String
+  verifierEncrypted String
+  expiresAt         DateTime
+
+  @@index([expiresAt])
+}
+
+enum RepositoryAnalysisStatus {
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+model RepositoryAnalysis {
+  id            String                   @id @default(cuid())
+  userId        String
+  user          AutopilotUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repositoryId  String
+  goal          String                   @db.VarChar(2000)
+  status        RepositoryAnalysisStatus @default(running)
+  fullName      String?
+  defaultBranch String?
+  htmlUrl       String?
+  commitSha     String?
+  isPrivate     Boolean?
+  model         String
+  summary       String?
+  result        Json?
+  context       Json?
+  errorCode     String?
+  createdAt     DateTime                 @default(now())
+  startedAt     DateTime                 @default(now())
+  completedAt   DateTime?
+  updatedAt     DateTime                 @updatedAt
+
+  @@index([userId, createdAt, id])
+  @@index([userId, repositoryId, createdAt, id])
+}

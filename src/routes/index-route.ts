@@ -8,9 +8,13 @@ import taskRouter from '../tasks/task.route';
 import subtaskRouter from '../subtasks/subtask.route';
 import commentRouter from '../comments/comment.route';
 import fileRouter from '../files/file.route';
+import githubAuthRouter from '../auth/github-auth.route';
+import repositoryAnalysisRouter from '../analysis/repository-analysis.route';
 
 const router = Router();
 
+router.use('/api', githubAuthRouter);
+router.use('/api', repositoryAnalysisRouter);
 router.use('/', memberRouter);
 router.use('/', invitationRouter);
 router.use('/auth', authRouter);
