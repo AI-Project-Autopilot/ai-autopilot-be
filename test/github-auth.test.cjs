@@ -1,12 +1,10 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Tests load CommonJS build output. */
 require('reflect-metadata');
 const { test, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const { Passport } = require('passport');
-// The router imports the existing JWT registration; this suite never uses its credentials.
-process.env.JWT_ACCESS_TOKEN_SECRET = 'test-only-access-secret';
-process.env.JWT_REFRESH_TOKEN_SECRET = 'test-only-refresh-secret';
 const { GitHubAuthService } = require('../dist/auth/github-auth.service');
 const { GitHubClient } = require('../dist/auth/github.client');
 const { GitHubStrategy } = require('../dist/auth/strategies/github.strategy');

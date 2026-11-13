@@ -4,8 +4,6 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
 process.env.NODE_ENV = 'test';
-process.env.JWT_ACCESS_TOKEN_SECRET = 'app-test-access-secret';
-process.env.JWT_REFRESH_TOKEN_SECRET = 'app-test-refresh-secret';
 process.env.CORS_ORIGINS = 'http://localhost:3000';
 process.env.AUTOPILOT_FRONTEND_URL = 'http://localhost:3000/connect/github';
 
@@ -41,6 +39,21 @@ test('production app serves Nest health and the mounted GitHub session endpoint 
   assert.deepEqual(await response.json(), { message: 'Login required.' });
   assert.equal(response.headers.get('access-control-allow-origin'), 'http://localhost:3000');
   assert.equal(response.headers.get('access-control-allow-credentials'), 'true');
+});
+
+test('production app no longer exposes legacy authentication, user, or project routes', async () => {
+  for (const [method, path] of [
+    ['POST', '/auth/register'],
+    ['POST', '/auth/login'],
+    ['POST', '/auth/refresh'],
+    ['GET', '/auth/google'],
+    ['GET', '/users/me'],
+    ['POST', '/projects'],
+    ['GET', '/projects/1'],
+  ]) {
+    const response = await request(path, { method });
+    assert.equal(response.status, 404, `${method} ${path} must be retired`);
+  }
 });
 
 test('production app starts GitHub OAuth and completes it using the browser cookie', async (t) => {

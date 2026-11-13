@@ -66,3 +66,42 @@ and returned as `result.language` when fetching a saved analysis through
 `GET /api/github/analyses/:analysisId`. Older saved results may omit this field
 and can be treated as Korean. Changing the frontend language does not translate
 existing saved results; create a new analysis with the desired language.
+
+## Database
+
+The current application uses four PostgreSQL tables:
+
+- `AutopilotUser`: GitHub accounts.
+- `AutopilotSession`: encrypted GitHub credentials and browser sessions.
+- `AutopilotOAuthState`: browser-bound login state and PKCE verifiers.
+- `RepositoryAnalysis`: submitted goals, analysis status, and saved results.
+
+Prisma also maintains `_prisma_migrations` for migration history. Set
+`DATABASE_URL`, then prepare the client and apply pending migrations:
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate:deploy
+```
+
+Migration `20261113000000_remove_legacy_tables` removes the retired project
+management tables (`Users`, `Tokens`, `Projects`, `Invitations`,
+`Project_members`, `Tasks`, `Task_tags`, `Tags`, `Subtasks`, `Comments`, and
+`Task_files`) and their two enums. Back up the target database before applying
+this migration in another environment. The migration runs in a transaction
+without `CASCADE`, so unexpected dependencies stop the cleanup. Applied migration
+files remain in version control so a new database can reproduce the schema.
+
+The old `/auth`, `/users`, and `/projects` APIs and demo seed were retired with
+these tables. Current authentication remains under `/api/auth`, and repository
+analysis remains under `/api/github`. Accounts are created by GitHub sign-in.
+Local database backups belong in the Git-ignored `.local-backups/` directory.
+
+Run the optional database integration checks against a local development database:
+
+```bash
+npm run test:db
+```
+
+These checks roll back their fixtures, including an isolated-schema test of the
+legacy cleanup migration and preservation of the current application's data.
