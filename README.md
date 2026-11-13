@@ -10,6 +10,8 @@ the project itself to create a practical, evidence-based action plan.
 2. Optionally describe a development goal.
 3. Get a project summary and prioritized recommendations based on the
    repository's documentation, configuration, source code, and tests.
+4. Select a recommendation, review its saved task draft, and create or link a
+   GitHub issue. Reopen the task later to track progress and refresh issue status.
 
 Each recommendation includes a rationale, implementation steps, acceptance
 criteria, and links to supporting code. The analysis also reports what it was
@@ -19,11 +21,9 @@ context.
 ## Current MVP
 
 The MVP supports GitHub sign-in, repository selection, AI-powered repository
-analysis, and saved analysis results. It provides development guidance; it
+analysis, saved analysis results, and persistent tracking of selected
+recommendations with GitHub issue links. It provides development guidance; it
 does not make code changes or run the suggested tasks.
-
-**Planned next:** let users approve recommendations and create GitHub Issues
-from them.
 
 ## Built with Meta
 
@@ -67,14 +67,51 @@ and returned as `result.language` when fetching a saved analysis through
 and can be treated as Korean. Changing the frontend language does not translate
 existing saved results; create a new analysis with the desired language.
 
+## Selected tasks and GitHub issues
+
+Selecting a recommendation saves an owner-scoped task derived from a successful
+saved analysis. Selecting the same recommendation again opens the existing task
+and preserves edits. The draft includes the goal, rationale, implementation steps,
+acceptance criteria, and links to code at the analyzed commit. Review and edit
+the title and Markdown body before explicitly creating an issue.
+
+| Method | Endpoint under `/api/github` | Purpose |
+| --- | --- | --- |
+| POST | `/analyses/:analysisId/tasks` | Select `{ "recommendationId": "task-1" }` |
+| GET | `/tasks` | List tasks; optional `repositoryId`, `analysisId`, and `page` filters |
+| GET | `/tasks/:taskId` | Reopen a saved task |
+| PATCH | `/tasks/:taskId` | Save `title`, `body`, or `status` changes |
+| POST | `/tasks/:taskId/issue` | Create an issue from the saved draft or reconcile a pending creation |
+| POST | `/tasks/:taskId/issue/sync` | Refresh the linked GitHub issue state |
+| POST | `/tasks/:taskId/issue/link` | Link an existing issue using `{ "issueNumber": 123 }` |
+
+Requests require the current session cookie; mutations also require the trusted
+frontend Origin header. Titles are limited to 200 characters and bodies to 30,000
+characters. Content editing is locked once issue creation starts; task status can
+still be updated after linking. The existing GitHub OAuth `repo` authorization
+is used, and the repository must allow issues and the account must have access.
+
+Task states are `selected`, `in_progress`, `completed`, and `cancelled`. Refreshing
+a closed issue marks the task completed, or cancelled when GitHub reports
+`not_planned`. A reopened issue returns the task to `in_progress`. These states
+track the work and GitHub issue lifecycle; they are not proof that the code or
+tests satisfy the acceptance criteria.
+
+Issue creation uses a persisted claim and a server-generated task marker to avoid
+duplicate writes. If GitHub times out or the response cannot be confirmed, the
+task stays pending/uncertain. Subsequent attempts search for the existing marker
+instead of sending another create request. If necessary, link the known existing
+issue number. Changing a task's status does not edit or close the GitHub issue.
+
 ## Database
 
-The current application uses four PostgreSQL tables:
+The current application uses five PostgreSQL tables:
 
 - `AutopilotUser`: GitHub accounts.
 - `AutopilotSession`: encrypted GitHub credentials and browser sessions.
 - `AutopilotOAuthState`: browser-bound login state and PKCE verifiers.
 - `RepositoryAnalysis`: submitted goals, analysis status, and saved results.
+- `TrackedTask`: selected recommendation drafts, progress, and GitHub issue links.
 
 Prisma also maintains `_prisma_migrations` for migration history. Set
 `DATABASE_URL`, then prepare the client and apply pending migrations:

@@ -17,6 +17,7 @@ model AutopilotUser {
   updatedAt DateTime             @updatedAt
   sessions  AutopilotSession[]
   analyses  RepositoryAnalysis[]
+  tasks     TrackedTask[]
 }
 
 model AutopilotSession {
@@ -68,7 +69,53 @@ model RepositoryAnalysis {
   startedAt     DateTime                 @default(now())
   completedAt   DateTime?
   updatedAt     DateTime                 @updatedAt
+  tasks         TrackedTask[]
 
+  @@index([userId, createdAt, id])
+  @@index([userId, repositoryId, createdAt, id])
+}
+
+enum TrackedTaskStatus {
+  selected
+  in_progress
+  completed
+  cancelled
+}
+
+enum IssueCreationState {
+  none
+  creating
+  created
+  uncertain
+}
+
+model TrackedTask {
+  id                     String             @id @default(cuid())
+  userId                 String
+  user                   AutopilotUser      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysisId             String
+  analysis               RepositoryAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  recommendationId       String
+  repositoryId           String
+  fullName               String
+  language               String             @db.VarChar(2)
+  title                  String             @db.VarChar(200)
+  body                   String             @db.Text
+  priority               String
+  source                 Json
+  status                 TrackedTaskStatus  @default(selected)
+  issueNumber            Int?
+  issueUrl               String?
+  issueState             String?
+  issueStateReason       String?
+  issueCreationState     IssueCreationState @default(none)
+  issueCreationStartedAt DateTime?
+  issueSyncedAt          DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@unique([userId, analysisId, recommendationId])
+  @@unique([userId, repositoryId, issueNumber])
   @@index([userId, createdAt, id])
   @@index([userId, repositoryId, createdAt, id])
 }
