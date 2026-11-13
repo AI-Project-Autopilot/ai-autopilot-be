@@ -188,8 +188,10 @@ export class RepositoryTaskService {
       return this.reconcile(token, task, repository);
     if (task.issueCreationState !== 'none')
       throw new ConflictException('The task issue state is inconsistent. Reload the task.');
-    if (!repository.issuesEnabled || repository.archived)
-      throw new ConflictException('This repository does not currently accept GitHub Issues.');
+    if (!repository.issuesEnabled)
+      throw new HttpException('GitHub Issues are disabled for this repository.', 410);
+    if (repository.archived)
+      throw new HttpException('This repository is archived and does not accept new issues.', 403);
     if (!(await this.repository.claimIssue(session.userId, id, task.updatedAt))) {
       const current = await this.requireTask(session.userId, id);
       if (current.issueNumber !== null) return taskDto(current);

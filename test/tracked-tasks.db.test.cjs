@@ -102,6 +102,11 @@ test(
             assert.equal(selected.title, recommendations[0].title);
             assert.equal(selected.status, 'selected');
             assert.equal(selected.userId, undefined);
+            assert.equal(
+              await tx.trackedTask.count({ where: { userId: owner.id, analysisId: analysis.id } }),
+              1,
+              'Saving an analysis must not automatically select every recommendation'
+            );
             await service.update('owner', selected.id, {
               title: 'Reviewed title',
               body: 'Reviewed issue body',
@@ -122,6 +127,44 @@ test(
             );
             assert.equal((await service.list('other', 1)).items.length, 0);
 
+            const otherRecommendation = {
+              ...recommendations[0],
+              title: 'Selected work for another repository',
+              evidence: [
+                {
+                  ...recommendations[0].evidence[0],
+                  url: `https://github.com/fixture/another/blob/${'b'.repeat(40)}/src/main.ts#L1-L1`,
+                },
+              ],
+            };
+            const otherAnalysis = await tx.repositoryAnalysis.create({
+              data: {
+                userId: owner.id,
+                repositoryId: '456',
+                fullName: 'fixture/another',
+                commitSha: 'b'.repeat(40),
+                goal: 'Improve another repository.',
+                status: 'succeeded',
+                model: 'fixture-model',
+                result: { language: 'en', recommendations: [otherRecommendation] },
+              },
+            });
+            const otherSelected = await service.select('owner', otherAnalysis.id, 'task-1');
+            assert.deepEqual(
+              (await service.list('owner', 1, '123')).items.map((item) => item.id),
+              [selected.id]
+            );
+            assert.deepEqual(
+              (await service.list('owner', 1, '456')).items.map((item) => item.id),
+              [otherSelected.id]
+            );
+            assert.equal((await service.list('owner', 1, '789')).items.length, 0);
+            assert.equal((await service.list('owner', 1, '123', otherAnalysis.id)).items.length, 0);
+            await assert.rejects(
+              service.select('other', otherAnalysis.id, 'task-1'),
+              (e) => e.getStatus() === 404
+            );
+
             await service.createIssue('owner', selected.id);
             assert.equal(posts, 1);
             assert.match(currentIssue.body, new RegExp(`<!-- autopilot-task:${selected.id} -->`));
@@ -135,11 +178,32 @@ test(
             assert.equal(saved.issueCreationState, 'created');
             assert.equal(saved.body, 'Reviewed issue body');
             assert.equal((await reloaded.list('owner', 1, '123', analysis.id)).items.length, 1);
+            const otherPage = await reloaded.list('owner', 1, '456', otherAnalysis.id);
+            assert.deepEqual(
+              otherPage.items.map((item) => item.id),
+              [otherSelected.id]
+            );
+            assert.equal(otherPage.items[0].analysisId, otherAnalysis.id);
+            assert.equal(otherPage.items[0].repositoryId, '456');
+            assert.equal(otherPage.items[0].title, otherRecommendation.title);
+            assert.equal((await reloaded.list('other', 1, '456')).items.length, 0);
+            const otherStored = await tx.trackedTask.findUniqueOrThrow({
+              where: { id: otherSelected.id },
+            });
+            assert.equal(otherStored.userId, owner.id);
+            assert.deepEqual(otherStored.source, otherRecommendation);
             await reloaded.createIssue('owner', selected.id);
             assert.equal(posts, 1, 'Reconstructed services must not repost a saved issue');
             currentIssue = { ...currentIssue, state: 'closed', stateReason: 'completed' };
             assert.equal((await reloaded.syncIssue('owner', selected.id)).status, 'completed');
 
+            assert.equal(
+              await tx.trackedTask.count({
+                where: { userId: owner.id, recommendationId: 'task-2' },
+              }),
+              0,
+              'Repository task lists must contain only explicitly selected recommendations'
+            );
             const second = await service.select('owner', analysis.id, 'task-2');
             async function rejectsConstraint(operation, code) {
               await tx.$executeRawUnsafe('SAVEPOINT expected_constraint');
@@ -171,8 +235,19 @@ test(
               'P2003'
             );
             await tx.repositoryAnalysis.delete({ where: { id: analysis.id } });
-            assert.equal(await tx.trackedTask.count({ where: { userId: owner.id } }), 0);
+            assert.equal((await reloaded.list('owner', 1, '123')).items.length, 0);
+            assert.deepEqual(
+              (await reloaded.list('owner', 1, '456')).items.map((item) => item.id),
+              [otherSelected.id]
+            );
+            assert.equal(await tx.trackedTask.count({ where: { userId: owner.id } }), 1);
             assert.ok(await tx.autopilotUser.findUnique({ where: { id: owner.id } }));
+            await tx.autopilotUser.delete({ where: { id: owner.id } });
+            assert.equal(await tx.trackedTask.count({ where: { userId: owner.id } }), 0);
+            assert.equal(
+              await tx.repositoryAnalysis.findUnique({ where: { id: otherAnalysis.id } }),
+              null
+            );
             completed = true;
             throw rollback;
           },

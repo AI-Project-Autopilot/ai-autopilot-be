@@ -398,3 +398,20 @@ test('explicit synchronization tracks completion, reopening and not-planned canc
   assert.equal(linked.issueCreationState, 'created');
   assert.equal(f.calls.length, 1, 'Manual linking must only read the existing GitHub issue');
 });
+
+test('disabled issues and archived repositories reject publication before claiming or writing', async () => {
+  for (const [repository, status] of [
+    [{ ...repositoryInfo, issuesEnabled: false }, 410],
+    [{ ...repositoryInfo, archived: true }, 403],
+  ]) {
+    const f = fixture();
+    const selected = await f.service.select('owner', analysisId, 'task-1');
+    f.github.repository = async () => repository;
+    await assert.rejects(
+      f.service.createIssue('owner', selected.id),
+      (error) => error.getStatus() === status
+    );
+    assert.equal(f.calls.length, 0);
+    assert.equal(f.rows.get(selected.id).issueCreationState, 'none');
+  }
+});

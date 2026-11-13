@@ -10,8 +10,9 @@ the project itself to create a practical, evidence-based action plan.
 2. Optionally describe a development goal.
 3. Get a project summary and prioritized recommendations based on the
    repository's documentation, configuration, source code, and tests.
-4. Select a recommendation, review its saved task draft, and create or link a
-   GitHub issue. Reopen the task later to track progress and refresh issue status.
+4. Choose a recommended task to save it and create its GitHub issue directly
+   from the analysis result. Reopen the task later to track progress and refresh
+   issue status.
 
 Each recommendation includes a rationale, implementation steps, acceptance
 criteria, and links to supporting code. The analysis also reports what it was
@@ -69,21 +70,26 @@ existing saved results; create a new analysis with the desired language.
 
 ## Selected tasks and GitHub issues
 
-Selecting a recommendation saves an owner-scoped task derived from a successful
-saved analysis. Selecting the same recommendation again opens the existing task
-and preserves edits. The draft includes the goal, rationale, implementation steps,
-acceptance criteria, and links to code at the analyzed commit. Review and edit
-the title and Markdown body before explicitly creating an issue.
+The result card's **Create GitHub issue for this task** action saves an
+owner-scoped task derived from a successful saved analysis, then creates its
+GitHub issue. The body includes the goal, rationale, implementation steps,
+acceptance criteria, and links to code at the analyzed commit. Selecting the same
+recommendation again preserves its saved content and reuses a linked issue.
+If GitHub creation fails, the saved task remains available for retry, recovery,
+or editing before another creation attempt. Existing issues can also be linked.
 
-| Method | Endpoint under `/api/github` | Purpose |
-| --- | --- | --- |
-| POST | `/analyses/:analysisId/tasks` | Select `{ "recommendationId": "task-1" }` |
-| GET | `/tasks` | List tasks; optional `repositoryId`, `analysisId`, and `page` filters |
-| GET | `/tasks/:taskId` | Reopen a saved task |
-| PATCH | `/tasks/:taskId` | Save `title`, `body`, or `status` changes |
-| POST | `/tasks/:taskId/issue` | Create an issue from the saved draft or reconcile a pending creation |
-| POST | `/tasks/:taskId/issue/sync` | Refresh the linked GitHub issue state |
-| POST | `/tasks/:taskId/issue/link` | Link an existing issue using `{ "issueNumber": 123 }` |
+The selection API itself only saves the task; the frontend follows it with the
+issue creation API. External writes happen only through the explicit issue action.
+
+| Method | Endpoint under `/api/github`  | Purpose                                                               |
+| ------ | ----------------------------- | --------------------------------------------------------------------- |
+| POST   | `/analyses/:analysisId/tasks` | Select `{ "recommendationId": "task-1" }`                             |
+| GET    | `/tasks`                      | List tasks; optional `repositoryId`, `analysisId`, and `page` filters |
+| GET    | `/tasks/:taskId`              | Reopen a saved task                                                   |
+| PATCH  | `/tasks/:taskId`              | Save `title`, `body`, or `status` changes                             |
+| POST   | `/tasks/:taskId/issue`        | Create an issue from the saved draft or reconcile a pending creation  |
+| POST   | `/tasks/:taskId/issue/sync`   | Refresh the linked GitHub issue state                                 |
+| POST   | `/tasks/:taskId/issue/link`   | Link an existing issue using `{ "issueNumber": 123 }`                 |
 
 Requests require the current session cookie; mutations also require the trusted
 frontend Origin header. Titles are limited to 200 characters and bodies to 30,000
