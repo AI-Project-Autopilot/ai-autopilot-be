@@ -74,11 +74,15 @@ export function createRepositoryAnalysisRouter(
       const goal: unknown = (body as { goal?: unknown } | undefined)?.goal;
       if (goal !== undefined && (typeof goal !== 'string' || goal.length > 2000))
         throw new BadRequestException('goal must be a string of at most 2000 characters.');
+      const language: unknown = (body as { language?: unknown } | undefined)?.language;
+      if (language !== undefined && language !== 'ko' && language !== 'en')
+        throw new BadRequestException('language must be "ko" or "en".');
       const result = await service.analyze(
         readGitHubCookie(req, sessionCookieName),
         id,
         typeof goal === 'string' ? goal.trim() : '',
-        cancellation.signal
+        cancellation.signal,
+        language ?? 'ko'
       );
       if (!cancellation.signal.aborted) res.json(result);
     } catch (error) {

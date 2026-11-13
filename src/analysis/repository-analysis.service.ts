@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { githubAuthService, GitHubAuthService } from '../auth/github-auth.service';
 import { decrypt } from '../auth/github-security';
-import { RepositoryAnalysisResult } from './analysis.types';
+import { AnalysisLanguage, RepositoryAnalysisResult } from './analysis.types';
 import { GitHubSourceClient } from './github-source.client';
 import { MetaAnalysisClient } from './meta.client';
 import {
@@ -32,7 +32,8 @@ export class RepositoryAnalysisService {
     sessionToken: string | undefined,
     repositoryId: string,
     goal: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    language: AnalysisLanguage = 'ko'
   ): Promise<RepositoryAnalysisResult> {
     const session = await this.auth.session(sessionToken);
     const configuration = this.model.configuration();
@@ -60,12 +61,13 @@ export class RepositoryAnalysisService {
       await this.repository.setSnapshot(analysisId, session.userId, snapshot);
       if (requestSignal.aborted)
         throw new GatewayTimeoutException('Repository analysis was interrupted.');
-      const analysis = await this.model.analyze(snapshot, goal, requestSignal);
+      const analysis = await this.model.analyze(snapshot, goal, requestSignal, language);
       if (requestSignal.aborted)
         throw new GatewayTimeoutException('Repository analysis was interrupted.');
       const result: RepositoryAnalysisResult = {
         ...analysis,
         analysisId,
+        language,
         repository: snapshot.repository,
         generatedAt: new Date().toISOString(),
         context: {

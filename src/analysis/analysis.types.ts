@@ -1,3 +1,5 @@
+export type AnalysisLanguage = 'ko' | 'en';
+
 export interface RepositorySourceFile {
   path: string;
   content: string;
@@ -48,6 +50,7 @@ export interface MetaAnalysis {
 
 export interface RepositoryAnalysisResult extends MetaAnalysis {
   analysisId: string;
+  language: AnalysisLanguage;
   repository: RepositorySnapshot['repository'];
   generatedAt: string;
   context: {
